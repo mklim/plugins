@@ -9,6 +9,9 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -31,7 +34,50 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
 
   @SuppressWarnings("unchecked")
   FlutterWebView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params) {
-    webView = new WebView(context);
+    webView = new WebView(context) {
+
+
+      private View threadedInputConnectionProxyView;
+
+      private boolean doNotProxyInputConnection = false;
+
+      @Override
+      public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+        if (doNotProxyInputConnection) {
+          return super.onCreateInputConnection(outAttrs);
+        }
+
+        if (threadedInputConnectionProxyView != null) {
+          // The threadedInputConnectionProxyView will invoke onCreateInputConnection on a separate
+          // thread(it is blocking until it gets the connection from the background thread).
+          // To prevent an infinite recursion we set doNotProxyInputConnection to true so that the
+          // next call(which is done on the background thread) won't delegate to the
+          // threadedInputConnectionProxyView again.
+          doNotProxyInputConnection = true;
+          InputConnection proxiedConnection = threadedInputConnectionProxyView.onCreateInputConnection(outAttrs);
+          doNotProxyInputConnection = false;
+          return proxiedConnection;
+        }
+
+        return super.onCreateInputConnection(outAttrs);
+      }
+
+      @Override
+      public boolean checkInputConnectionProxy(final View view) {
+        View previousProxy = threadedInputConnectionProxyView;
+        threadedInputConnectionProxyView = view;
+       if (previousProxy == null) {
+         post(new Runnable() {
+           @Override
+           public void run() {
+             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+             imm.restartInput(view);
+           }
+         });
+       }
+        return super.checkInputConnectionProxy(view);
+      }
+    };
     platformThreadHandler = new Handler(context.getMainLooper());
     // Allow local storage.
     webView.getSettings().setDomStorageEnabled(true);
