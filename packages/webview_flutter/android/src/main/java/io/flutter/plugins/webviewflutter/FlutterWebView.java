@@ -8,6 +8,9 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
@@ -21,9 +24,12 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.platform.PlatformView;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static android.content.Context.INPUT_METHOD_SERVICE;
 
 public class FlutterWebView implements PlatformView, MethodCallHandler {
   private static final String JS_CHANNEL_NAMES_FIELD = "javascriptChannelNames";
@@ -33,45 +39,59 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
   private final Handler platformThreadHandler;
 
   @SuppressWarnings("unchecked")
-  FlutterWebView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params) {
+  FlutterWebView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params, final View flutterView) {
     webView = new WebView(context) {
 
 
       private View threadedInputConnectionProxyView;
 
-      private boolean doNotProxyInputConnection = false;
+      private ThreadedInputConnectionProxyAdapterView proxyAdapterView;
 
       @Override
       public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        if (doNotProxyInputConnection) {
+        if (proxyAdapterView == null) {
+            Log.d("DEBUG", "no proxy adapter, using default implementation");
           return super.onCreateInputConnection(outAttrs);
         }
 
-        if (threadedInputConnectionProxyView != null) {
-          // The threadedInputConnectionProxyView will invoke onCreateInputConnection on a separate
-          // thread(it is blocking until it gets the connection from the background thread).
-          // To prevent an infinite recursion we set doNotProxyInputConnection to true so that the
-          // next call(which is done on the background thread) won't delegate to the
-          // threadedInputConnectionProxyView again.
-          doNotProxyInputConnection = true;
-          InputConnection proxiedConnection = threadedInputConnectionProxyView.onCreateInputConnection(outAttrs);
-          doNotProxyInputConnection = false;
-          return proxiedConnection;
+        if (!proxyAdapterView.triggerDelayed) {
+          Log.d("DEBUG", "connection creation with no delayed triggering delegating to super");
+          // on IME thread delegate to super
+          return super.onCreateInputConnection(outAttrs);
         }
 
-        return super.onCreateInputConnection(outAttrs);
+        InputConnection result = super.onCreateInputConnection(outAttrs);
+        assert(result == null);
+
+        final InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+        proxyAdapterView.requestFocus();
+        final View containerView = this;
+        Log.d("DEBUG", "triggering connection");
+        this.post(new Runnable() {
+          @Override
+          public void run() {
+            proxyAdapterView.onWindowFocusChanged(true);
+            Log.d("DEBUG", "calling isActive");
+            imm.isActive(containerView);
+          }
+        });
+        return null;
       }
 
       @Override
       public boolean checkInputConnectionProxy(final View view) {
         View previousProxy = threadedInputConnectionProxyView;
         threadedInputConnectionProxyView = view;
-       if (previousProxy == null) {
+       if (previousProxy != view) {
+         proxyAdapterView = new ThreadedInputConnectionProxyAdapterView(flutterView, view, view.getHandler());
+         final View container = this;
+         proxyAdapterView.requestFocus();
          post(new Runnable() {
            @Override
            public void run() {
-             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-             imm.restartInput(view);
+             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+             Log.d("DEBUG", "restarting input");
+             imm.restartInput(container);
            }
          });
        }
@@ -102,6 +122,7 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
   public View getView() {
     return webView;
   }
+
 
   @Override
   public void onMethodCall(MethodCall methodCall, Result result) {
@@ -282,5 +303,74 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
   @Override
   public void dispose() {
     methodChannel.setMethodCallHandler(null);
+  }
+}
+
+class ThreadedInputConnectionProxyAdapterView extends  View {
+
+  public boolean triggerDelayed = true;
+  Handler imeHandler;
+  View containerView;
+
+  IBinder windowToken;
+  View rootView;
+  View targetView;
+
+  public ThreadedInputConnectionProxyAdapterView(View containerView, View targetView, Handler imeHandler) {
+    super(containerView.getContext());
+    this.imeHandler = imeHandler;
+    this.containerView = containerView;
+    this.targetView = targetView;
+    setFocusable(true);
+    setFocusableInTouchMode(true);
+    setVisibility(VISIBLE);
+    windowToken = containerView.getWindowToken();
+    rootView = containerView.getRootView();
+  }
+
+  @Override
+  public InputConnection onCreateInputConnection(final EditorInfo outAttrs) {
+    Log.d("DEBUG", "proxy onCreateInputConnection on " + Looper.myLooper().toString());
+    Log.d("DEBUG", "proxy target view is " + targetView);
+    triggerDelayed = false;
+    InputConnection inputConnection = targetView.onCreateInputConnection(outAttrs);
+    triggerDelayed = true;
+    Log.d("DEBUG", "Proxying input connection to : " + inputConnection);
+    return inputConnection;
+  }
+
+  @Override
+  public boolean checkInputConnectionProxy(View view) {
+    return true;
+  }
+
+  @Override
+  public boolean hasWindowFocus() {
+    return true;
+  }
+
+  @Override
+  public View getRootView() {
+    return rootView;
+  }
+
+  @Override
+  public boolean onCheckIsTextEditor() {
+    return true;
+  }
+
+  @Override
+  public boolean isFocused() {
+    return true;
+  }
+
+  @Override
+  public IBinder getWindowToken() {
+    return windowToken;
+  }
+
+  @Override
+  public Handler getHandler() {
+    return imeHandler;
   }
 }

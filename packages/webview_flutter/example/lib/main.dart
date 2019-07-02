@@ -47,7 +47,7 @@ class _WebViewExampleState extends State<WebViewExample> {
       // We're using a Builder here so we have a context that is below the Scaffold
       // to allow calling Scaffold.of(context) so we can show a snackbar.
       body: Builder(builder: (BuildContext context) {
-        return SizedBox(height: 300, child: WebView(
+        return SizedBox(height: 250, child: WebView(
           initialUrl: 'https://flutter.dev',
           javascriptMode: JavascriptMode.unrestricted,
           onWebViewCreated: (WebViewController webViewController) {
