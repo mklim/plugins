@@ -33,88 +33,96 @@ import static android.content.Context.INPUT_METHOD_SERVICE;
 
 public class FlutterWebView implements PlatformView, MethodCallHandler {
   private static final String JS_CHANNEL_NAMES_FIELD = "javascriptChannelNames";
-  private final WebView webView;
+  private final InputGrabbingWebView webView;
   private final MethodChannel methodChannel;
   private final FlutterWebViewClient flutterWebViewClient;
   private final Handler platformThreadHandler;
 
-  @SuppressWarnings("unchecked")
-  FlutterWebView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params, final View flutterView) {
-    webView = new WebView(context) {
+  private static class InputGrabbingWebView extends WebView {
+    private final View flutterView;
 
+    InputGrabbingWebView(Context context, View flutterView) {
+      super(context);
+      this.flutterView = flutterView;
+    }
 
-      private View threadedInputConnectionProxyView;
+    private View threadedInputConnectionProxyView;
 
-      private ThreadedInputConnectionProxyAdapterView proxyAdapterView;
+    private ThreadedInputConnectionProxyAdapterView proxyAdapterView;
 
-      @Override
-      public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        if (proxyAdapterView == null) {
-            Log.d("DEBUG", "no proxy adapter, using default implementation");
-          return super.onCreateInputConnection(outAttrs);
+    @Override
+    public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+      if (proxyAdapterView == null) {
+        Log.d("DEBUG", "no proxy adapter, using default implementation");
+        return super.onCreateInputConnection(outAttrs);
+      }
+
+      if (!proxyAdapterView.triggerDelayed) {
+        Log.d("DEBUG", "connection creation with no delayed triggering delegating to super");
+        // on IME thread delegate to super
+        return super.onCreateInputConnection(outAttrs);
+      }
+
+      InputConnection result = super.onCreateInputConnection(outAttrs);
+      assert(result == null);
+
+      final InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+      proxyAdapterView.requestFocus();
+      final View containerView = this;
+      Log.d("DEBUG", "triggering connection");
+      this.post(new Runnable() {
+        @Override
+        public void run() {
+          proxyAdapterView.onWindowFocusChanged(true);
+          Log.d("DEBUG", "calling isActive");
+          imm.isActive(containerView);
         }
+      });
+      return null;
+    }
 
-        if (!proxyAdapterView.triggerDelayed) {
-          Log.d("DEBUG", "connection creation with no delayed triggering delegating to super");
-          // on IME thread delegate to super
-          return super.onCreateInputConnection(outAttrs);
-        }
-
-        InputConnection result = super.onCreateInputConnection(outAttrs);
-        assert(result == null);
-
-        final InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+    @Override
+    public boolean checkInputConnectionProxy(final View view) {
+      View previousProxy = threadedInputConnectionProxyView;
+      threadedInputConnectionProxyView = view;
+      if (previousProxy != view) {
+        proxyAdapterView = new ThreadedInputConnectionProxyAdapterView(flutterView, view, view.getHandler());
+        final View container = this;
         proxyAdapterView.requestFocus();
-        final View containerView = this;
-        Log.d("DEBUG", "triggering connection");
-        this.post(new Runnable() {
+        post(new Runnable() {
           @Override
           public void run() {
-            proxyAdapterView.onWindowFocusChanged(true);
-            Log.d("DEBUG", "calling isActive");
-            imm.isActive(containerView);
+            InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
+            Log.d("DEBUG", "restarting input");
+            imm.restartInput(container);
           }
         });
-        return null;
       }
+      return super.checkInputConnectionProxy(view);
+    }
+  }
 
-      @Override
-      public boolean checkInputConnectionProxy(final View view) {
-        View previousProxy = threadedInputConnectionProxyView;
-        threadedInputConnectionProxyView = view;
-       if (previousProxy != view) {
-         proxyAdapterView = new ThreadedInputConnectionProxyAdapterView(flutterView, view, view.getHandler());
-         final View container = this;
-         proxyAdapterView.requestFocus();
-         post(new Runnable() {
-           @Override
-           public void run() {
-             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(INPUT_METHOD_SERVICE);
-             Log.d("DEBUG", "restarting input");
-             imm.restartInput(container);
-           }
-         });
-       }
-        return super.checkInputConnectionProxy(view);
-      }
-    };
+  @SuppressWarnings("unchecked")
+  FlutterWebView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params, final View flutterView) {
+    webView = new InputGrabbingWebView(context, flutterView);
+
     platformThreadHandler = new Handler(context.getMainLooper());
-    // Allow local storage.
+      // Allow local storage.
     webView.getSettings().setDomStorageEnabled(true);
 
     methodChannel = new MethodChannel(messenger, "plugins.flutter.io/webview_" + id);
     methodChannel.setMethodCallHandler(this);
 
-    flutterWebViewClient = new FlutterWebViewClient(methodChannel);
-    applySettings((Map<String, Object>) params.get("settings"));
+      flutterWebViewClient = new FlutterWebViewClient(methodChannel);
+      applySettings((Map<String, Object>) params.get("settings"));
 
     if (params.containsKey(JS_CHANNEL_NAMES_FIELD)) {
       registerJavaScriptChannelNames((List<String>) params.get(JS_CHANNEL_NAMES_FIELD));
     }
 
     if (params.containsKey("initialUrl")) {
-      String url = (String) params.get("initialUrl");
-      webView.loadUrl(url);
+        String url = (String) params.get("initialUrl");
+        webView.loadUrl(url);
     }
   }
 
@@ -123,6 +131,17 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
     return webView;
   }
 
+  @Override
+  public void onInputConnectionUnlocked() {
+    Log.d("DEBUG", "Unlocking webview.");
+    webView.proxyAdapterView.isLocked = false;
+  }
+
+  @Override
+  public void onInputConnectionLocked() {
+    Log.d("DEBUG", "Locking webview.");
+    webView.proxyAdapterView.isLocked = true;
+  }
 
   @Override
   public void onMethodCall(MethodCall methodCall, Result result) {
@@ -309,8 +328,10 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
 class ThreadedInputConnectionProxyAdapterView extends  View {
 
   public boolean triggerDelayed = true;
+  public boolean isLocked = false;
   Handler imeHandler;
   View containerView;
+  InputConnection cachedConnection;
 
   IBinder windowToken;
   View rootView;
@@ -333,9 +354,13 @@ class ThreadedInputConnectionProxyAdapterView extends  View {
     Log.d("DEBUG", "proxy onCreateInputConnection on " + Looper.myLooper().toString());
     Log.d("DEBUG", "proxy target view is " + targetView);
     triggerDelayed = false;
-    InputConnection inputConnection = targetView.onCreateInputConnection(outAttrs);
+    InputConnection inputConnection = (isLocked) ? cachedConnection : targetView.onCreateInputConnection(outAttrs);
+    if (isLocked) {
+      Log.d("DEBUG", "using cached connection of " + inputConnection);
+    }
     triggerDelayed = true;
     Log.d("DEBUG", "Proxying input connection to : " + inputConnection);
+    cachedConnection = inputConnection;
     return inputConnection;
   }
 
