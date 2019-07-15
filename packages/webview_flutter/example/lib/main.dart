@@ -7,7 +7,30 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-void main() => runApp(MaterialApp(home: WebViewExample()));
+void main() => runApp(MaterialApp(home: FirstPage()));
+
+class FirstPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('First Page'),
+      ),
+      body: Center(
+        child: RaisedButton(
+          onPressed: () {
+            Navigator.push<WebViewExample>(
+              context,
+              MaterialPageRoute<WebViewExample>(
+                  builder: (BuildContext context) => WebViewExample()),
+            );
+          },
+          child: const Text('Open WebView'),
+        ),
+      ),
+    );
+  }
+}
 
 const String kNavigationExamplePage = '''
 <!DOCTYPE html><html>
@@ -71,7 +94,12 @@ class _WebViewExampleState extends State<WebViewExample> {
           },
         );
       }),
-      floatingActionButton: favoriteButton(),
+      floatingActionButton: RaisedButton(
+        child: const Text('Go back'),
+        onPressed: () {
+          Navigator.pop(context);
+        },
+      ),
     );
   }
 
