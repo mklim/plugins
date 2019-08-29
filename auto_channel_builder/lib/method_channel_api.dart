@@ -1,3 +1,31 @@
+class Language {
+  const Language({this.name, this.options});
+  final String name;
+  final LanguageOptions options;
+
+  static const Language dart = Language(name: dartName);
+}
+
+abstract class LanguageOptions {
+  const LanguageOptions();
+}
+
+/// Options for generating Java sources.
+class JavaOptions extends LanguageOptions {
+  const JavaOptions({this.packageName, this.outputDirectory});
+  /// The package name for the generated files. (`com.example.TestPlugin`)
+  final String packageName;
+  /// The directory (relative to the package root) to write output to.
+  final String outputDirectory;
+}
+
+const String javaName = 'Java';
+const String dartName = 'Dart';
+const List<String> supportedLanguages = <String>[
+  javaName,
+  dartName,
+];
+
 /// Annotation for a class that represents an API that crosses a MethodChannel boundary.
 ///
 /// Use this in conjunction with the [AutoChannel] builder to automatically
@@ -41,7 +69,7 @@
 ///
 /// This is also not OK, since the method isn't abstract:
 ///
-/// ```dart
+/// ```darLangauget
 ///   @MethodChannelApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     Future<void> bar(List<int> baz, bool quux) => print('hello world');
@@ -58,6 +86,10 @@
 /// ```
 class MethodChannelApi {
   /// [channelName] is the `String` name of the MethodChannel underneath this API.
-  const MethodChannelApi({this.channelName});
+  const MethodChannelApi({this.channelName, this.invokers, this.listeners});
   final String channelName;
+  /// The languages to generate invokers for.
+  final List<Language> invokers;
+  /// The langauges to generate listeners for.
+  final List<Language> listeners;
 }
