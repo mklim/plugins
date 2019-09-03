@@ -1,10 +1,10 @@
 import 'package:analyzer/dart/constant/value.dart';
+import 'package:auto_channel_builder/annotation/method_channel_api.dart';
 import 'package:build/build.dart';
 import 'package:tuple/tuple.dart';
 
-import '../api.dart';
+import '../ast.dart';
 import '../generator_for_language.dart';
-import '../method_channel_api.dart';
 
 const String _invokerClassTemplate = """
   import '%BASE_URI%';
