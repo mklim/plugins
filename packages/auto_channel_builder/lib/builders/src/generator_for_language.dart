@@ -1,6 +1,6 @@
 import 'package:build/build.dart';
 import 'package:analyzer/dart/constant/value.dart';
-import 'api.dart';
+import 'ast.dart';
 
 /// Interface defining a generator for a specific language.
 abstract class GeneratorForLanguage {

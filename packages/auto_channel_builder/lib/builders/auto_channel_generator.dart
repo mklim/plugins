@@ -2,14 +2,14 @@ import 'dart:async';
 
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
-import 'package:auto_channel_builder/generator_for_language.dart';
-import 'package:auto_channel_builder/method_channel_api.dart';
+import 'package:auto_channel_builder/annotation/method_channel_api.dart';
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
-import 'api.dart';
-import 'dart/generator.dart';
-import 'java/generator.dart';
+import 'src/ast.dart';
+import 'src/dart/generator.dart';
+import 'src/generator_for_language.dart';
+import 'src/java/generator.dart';
 
 List<GeneratorForLanguage> _generators = <GeneratorForLanguage>[
   DartAutoChannelGenerator(),

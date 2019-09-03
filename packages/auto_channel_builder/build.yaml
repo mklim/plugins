@@ -1,6 +1,6 @@
 builders:
   auto_channel_builder:
-    import: "package:auto_channel_builder/auto_channel_generator.dart"
+    import: "package:auto_channel_builder/builders/auto_channel_generator.dart"
     builder_factories: ["autoChannelGenerator"]
     build_extensions: {".dart": [".auto_channel.dart"]}
     auto_apply: dependents
@@ -8,6 +8,6 @@ builders:
     applies_builders: [":cleanup"]
 post_process_builders:
   cleanup:
-    import: "package:auto_channel_builder/auto_channel_generator.dart"
+    import: "package:auto_channel_builder/builders/auto_channel_generator.dart"
     builder_factory: "cleanupGenerator"
     input_extensions: [".java"]

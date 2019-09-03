@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:auto_channel_builder/generator_for_language.dart';
-import 'package:auto_channel_builder/method_channel_api.dart';
+import 'package:auto_channel_builder/annotation/method_channel_api.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart' as p;
 import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
-import '../api.dart';
+import '../ast.dart';
+import '../generator_for_language.dart';
 
 const Map<SupportedType, String> supportedTypeEnumToJavaName =
     <SupportedType, String>{
