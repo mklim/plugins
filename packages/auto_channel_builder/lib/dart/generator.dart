@@ -3,7 +3,7 @@ import 'package:build/build.dart';
 import 'package:tuple/tuple.dart';
 
 import '../api.dart';
-import '../language_generator.dart';
+import '../generator_for_language.dart';
 import '../method_channel_api.dart';
 
 const String _invokerClassTemplate = """
@@ -13,7 +13,7 @@ const String _invokerClassTemplate = """
   class %BASE_NAME%Invoker implements %BASE_NAME% {
     MethodChannel _methodChannel = MethodChannel('%CHANNEL_NAME%');
 
-    %METHODS%
+%METHODS%
   }
 """;
 
@@ -21,11 +21,10 @@ const String _invokerMethodTemplate = """
     @override
     Future<%RETURN_TYPE%> %NAME%(%ARG_LIST%) async {
       final Map<String, dynamic> args = {%ARG_MAP_KEYS%};
-      return _methodChannel.invokeMethod<%RETURN_TYPE%>('%NAME%', args);
-    }
-""";
+      return _methodChannel.%INVOKE_METHOD%<%METHOD_TYPE_ARGS%>('%NAME%', args);
+    }""";
 
-class DartAutoChannelGenerator extends LanguageGenerator {
+class DartAutoChannelGenerator extends GeneratorForLanguage {
   @override
   Future<void> generateCaller(
       {ParsedMethodChannelApi api,
@@ -57,15 +56,36 @@ class DartAutoChannelGenerator extends LanguageGenerator {
       argList.add('${_fullTypeString(arg.item1)} ${arg.item2}');
       argMapKeys.add("'${arg.item2}': ${arg.item2}");
     }
+    String invokeMethod;
+    String methodTypeArgs;
+    if (method.returnType.type != SupportedType.LIST &&
+        method.returnType.type != SupportedType.MAP) {
+      invokeMethod = 'invokeMethod';
+      methodTypeArgs = _fullTypeString(method.returnType);
+    } else {
+      methodTypeArgs =
+          method.returnType.typeArguments.map(_fullTypeString).join(', ');
+      if (method.returnType.type == SupportedType.LIST) {
+        invokeMethod = 'invokeListMethod';
+      } else if (method.returnType.type == SupportedType.MAP) {
+        invokeMethod = 'invokeMapMethod';
+      }
+    }
     return _invokerMethodTemplate
         .replaceAll('%RETURN_TYPE%', _fullTypeString(method.returnType))
+        .replaceAll('%METHOD_TYPE_ARGS%', methodTypeArgs)
+        .replaceAll('%INVOKE_METHOD%', invokeMethod)
         .replaceAll('%NAME%', method.name)
         .replaceAll('%ARG_LIST%', argList.join(', '))
         .replaceAll('%ARG_MAP_KEYS%', argMapKeys.join(', '));
   }
 
   @override
-  String get supportedLanguageName => dartName;
+  Future<void> onPostProcess(PostProcessBuildStep buildStep) =>
+      null; // Nothing to clean.
+
+  @override
+  String get languageName => dartName;
 
   @override
   List<String> get extensions => <String>[];

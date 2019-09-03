@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:auto_channel_builder/language_generator.dart';
+import 'package:auto_channel_builder/generator_for_language.dart';
 import 'package:auto_channel_builder/method_channel_api.dart';
 import 'package:build/build.dart';
+import 'package:path/path.dart' as p;
 import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
@@ -28,11 +32,11 @@ const String _header = """
 // **************************************************************************
 // Generator: JavaAutoChannelGenerator
 // **************************************************************************
+
+package %PACKAGE%;
 """;
 
 const String _handlerClassTemplate = """$_header
-
-package %PACKAGE%;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -55,7 +59,8 @@ public final class %BASE_NAME%Handler implements MethodCallHandler {
   @Override
   public void onMethodCall(MethodCall call, final Result result) {
     switch (call.method) {
-      %HANDLER_CASES%
+%HANDLER_CASES%
+
       default:
         result.notImplemented();
         break;
@@ -64,24 +69,25 @@ public final class %BASE_NAME%Handler implements MethodCallHandler {
 }
 """;
 
-const String _handlerCaseTemplate = """case "%NAME%":
+const String _handlerCaseTemplate = """      case "%NAME%":
         result.success(impl.%NAME%(%ARGS%));
         break;""";
 
-const String _interfaceMethodTemplate = "%RETURN_TYPE% %NAME%(%ARGS%);";
+const String _interfaceMethodTemplate = "  %RETURN_TYPE% %NAME%(%ARGS%);";
 
 const String _interfaceClassTemplate = """$_header
-package %PACKAGE%;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public interface %BASE_NAME% {
-  %METHODS%
+%METHODS%
 }
 """;
 
-class JavaAutoChannelGenerator extends LanguageGenerator {
+class JavaAutoChannelGenerator extends GeneratorForLanguage {
+  Directory _outputDirectory;
+
   @override
   Future<void> generateCaller(
           {ParsedMethodChannelApi api,
@@ -94,6 +100,7 @@ class JavaAutoChannelGenerator extends LanguageGenerator {
       {ParsedMethodChannelApi api,
       BuildStep buildStep,
       DartObject options}) async {
+    _outputDirectory = null;
     final JavaOptions parsedOptions = _parseOptions(options);
 
     final Future<void> interfaceFuture = _generateInterface(
@@ -105,11 +112,65 @@ class JavaAutoChannelGenerator extends LanguageGenerator {
   }
 
   @override
-  String get supportedLanguageName => javaName;
+  Future<void> onPostProcess(PostProcessBuildStep buildStep) async {
+    // We want to move the file out of `lib/` and into the appropriate Java
+    // package.
+    final File original = File(buildStep.inputId.path);
+    final Stream<String> lines = original
+        .openRead()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    String packageName;
+    String className;
+    final RegExp classRegex =
+        RegExp(r'public.*(class|interface) (?<className>\w+)');
+    await for (String line in lines) {
+      if (packageName != null && className != null) {
+        break;
+      }
+
+      if (line.startsWith('package ') && packageName == null) {
+        packageName = line.substring('package '.length, line.length - 1);
+      } else if (classRegex.hasMatch(line) && className == null) {
+        className =
+            classRegex.firstMatch(line).namedGroup('className').toString();
+      }
+    }
+    if (packageName == null || className == null) {
+      return null;
+    }
+
+    final String outputDirPath =
+        'android/src/main/java/${packageName.replaceAll(".", "/")}';
+    _outputDirectory ??= _initOutputDir(outputDirPath);
+    final String newFilename =
+        "$className${p.extension(buildStep.inputId.path)}";
+    original.copySync('$outputDirPath/$newFilename');
+    original.deleteSync();
+    // We want to move the file out of `lib/` and into the appropriate Java
+    return null;
+  }
+
+  @override
+  String get languageName => javaName;
 
   @override
   List<String> get extensions =>
       <String>['.auto_channel.java', '.auto_channel.handler.java'];
+
+  Directory _initOutputDir(String path) {
+    final Directory outputDir = Directory(path);
+    if (!outputDir.existsSync()) {
+      outputDir.createSync(recursive: true);
+    } else {
+      // There may be outdated output from a previous build. Delete the
+      // directory and recreate it to delete any old files.
+      outputDir.deleteSync(recursive: true);
+      outputDir.createSync(recursive: true);
+    }
+    return outputDir;
+  }
 
   Future<void> _generateHandler(
       {ParsedMethodChannelApi api, BuildStep buildStep, JavaOptions options}) {
@@ -119,15 +180,12 @@ class JavaAutoChannelGenerator extends LanguageGenerator {
     final String output = _handlerClassTemplate
         .replaceAll('%BASE_NAME%', api.name)
         .replaceAll('%CHANNEL_NAME%', api.methodChannelName)
-        .replaceAll('%PACKAGE%', options.packageName)
+        .replaceAll('%PACKAGE%', options.basePackageName)
         .replaceAll('%HANDLER_CASES%', cases);
 
-    return writeOutput(
-        output: output,
-        extension: '.auto_channel.handler.java',
-        filename: '${api.name}Handler.java',
-        options: options,
-        buildStep: buildStep);
+    final AssetId javaFile =
+        buildStep.inputId.changeExtension('.auto_channel.handler.java');
+    return buildStep.writeAsString(javaFile, output);
   }
 
   // Create a generic interface for the API surface on the Java side.
@@ -137,71 +195,34 @@ class JavaAutoChannelGenerator extends LanguageGenerator {
         api.methods.map(_buildInterfaceMethodString).toList().join('\n\n');
     final String output = _interfaceClassTemplate
         .replaceAll('%BASE_NAME%', api.name)
-        .replaceAll('%PACKAGE%', options.packageName)
+        .replaceAll('%PACKAGE%', options.basePackageName)
         .replaceAll('%METHODS%', methods);
 
-    return writeOutput(
-        output: output,
-        extension: '.auto_channel.java',
-        filename: '${api.name}.java',
-        options: options,
-        buildStep: buildStep);
-  }
-
-  static Future<void> writeOutput(
-      {String output,
-      String extension,
-      String filename,
-      JavaOptions options,
-      BuildStep buildStep}) {
-    final AssetId javaFile = buildStep.inputId.changeExtension(extension);
-
-    final Uri linkDir = Uri.parse(options.outputDirectory);
-
-    return buildStep
-        .writeAsString(javaFile, output)
-        .catchError((dynamic _) async {
-      final Link javaLink = Link(options.outputDirectory);
-      if (javaLink.existsSync()) {
-        await javaLink.delete();
-      }
-    }).whenComplete(() async {
-      final String relativeDir = linkDir.pathSegments
-          .sublist(0, linkDir.pathSegments.length - 1)
-          .map((String _) => '..')
-          .join('/');
-      final String absoluteAssetPath =
-          Uri.parse(relativeDir).resolve(javaFile.path).toFilePath();
-      final Link javaLink = Link(linkDir.resolve(filename).toString());
-      if (javaLink.existsSync()) {
-        return javaLink.update(absoluteAssetPath);
-      } else {
-        return javaLink.create(absoluteAssetPath);
-      }
-    });
+    final AssetId javaFile =
+        buildStep.inputId.changeExtension('.auto_channel.java');
+    return buildStep.writeAsString(javaFile, output);
   }
 
   static JavaOptions _parseOptions(DartObject options) {
     if (options.isNull) {
       throw InvalidGenerationSourceError(
-          'Java files need a configured pacakgeName and outputDirectory');
+          'Java files need a configured basePackageName.');
     }
 
-    final String packageName = options.getField('packageName').toStringValue();
-    final String outputDirectory =
-        options.getField('outputDirectory').toStringValue();
-    if (packageName == null || outputDirectory == null) {
+    final String basePackageName =
+        options.getField('basePackageName').toStringValue();
+    if (basePackageName == null) {
       throw InvalidGenerationSourceError(
-          'Java files need a configured pacakgeName and outputDirectory');
+          'Java files need a configured basePackageName.');
     }
 
-    return JavaOptions(
-        packageName: packageName, outputDirectory: outputDirectory);
+    return JavaOptions(basePackageName: '$basePackageName.generated');
   }
 
   static String _buildHandlerCaseString(ParsedMethod method) {
     final String argList = method.args
-        .map((Tuple2<ArgType, String> arg) => 'call.argument("${arg.item2}")')
+        .map((Tuple2<ArgType, String> arg) =>
+            '(${_buildFullTypeString(arg.item1)}) call.argument("${arg.item2}")')
         .join(', ');
 
     return _handlerCaseTemplate
