@@ -1,31 +1,3 @@
-class Language {
-  const Language({this.name, this.options});
-  final String name;
-  final LanguageOptions options;
-
-  static const Language dart = Language(name: dartName);
-}
-
-abstract class LanguageOptions {
-  const LanguageOptions();
-}
-
-/// Options for generating Java sources.
-class JavaOptions extends LanguageOptions {
-  const JavaOptions({this.packageName, this.outputDirectory});
-  /// The package name for the generated files. (`com.example.TestPlugin`)
-  final String packageName;
-  /// The directory (relative to the package root) to write output to.
-  final String outputDirectory;
-}
-
-const String javaName = 'Java';
-const String dartName = 'Dart';
-const List<String> supportedLanguages = <String>[
-  javaName,
-  dartName,
-];
-
 /// Annotation for a class that represents an API that crosses a MethodChannel boundary.
 ///
 /// Use this in conjunction with the [AutoChannel] builder to automatically
@@ -69,7 +41,7 @@ const List<String> supportedLanguages = <String>[
 ///
 /// This is also not OK, since the method isn't abstract:
 ///
-/// ```darLangauget
+/// ```dart
 ///   @MethodChannelApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     Future<void> bar(List<int> baz, bool quux) => print('hello world');
@@ -86,10 +58,52 @@ const List<String> supportedLanguages = <String>[
 /// ```
 class MethodChannelApi {
   /// [channelName] is the `String` name of the MethodChannel underneath this API.
-  const MethodChannelApi({this.channelName, this.invokers, this.listeners});
+  const MethodChannelApi({this.channelName, this.invokers, this.handlers});
   final String channelName;
+
   /// The languages to generate invokers for.
+  ///
+  /// An "invoker" is a class that _initiates_ calls to the `MethodChannel`.
+  /// In most typical Flutter plugins Dart will be the only invoker. In some
+  /// more complicated use cases other langauges may also initiate calls across
+  /// the method channel, for example when the underlying platforms need to call
+  /// Dart code in response to a callback.
   final List<Language> invokers;
-  /// The langauges to generate listeners for.
-  final List<Language> listeners;
+
+  /// The langauges to generate handlers for.
+  ///
+  /// A "handler" is a class that _listens and responds to_ calls on the
+  /// `MethodChannel`. In most typical Flutter plugins there will be Handlers
+  /// for each platform supported by the plugin.
+  final List<Language> handlers;
+}
+
+/// Generic representation of each langauge supported by the generator.
+class Language {
+  const Language({this.name, this.options});
+  final String name;
+  final LanguageOptions options;
+
+  static const Language dart = Language(name: dartName);
+}
+
+/// Options for generating Java sources.
+abstract class LanguageOptions {
+  const LanguageOptions();
+}
+
+const String javaName = 'Java';
+const String dartName = 'Dart';
+
+/// Java specific generation options.
+class JavaOptions extends LanguageOptions {
+  const JavaOptions({this.basePackageName});
+
+  /// The base package name for the generated files. `.generated` is automatically
+  /// appended to whatever is put here.
+  ///
+  /// For example, `com.example` would be converted to `com.example.generated`.
+  /// A class `TestPlugin` within that packcage would be saved as
+  /// `com.example.generated.TestPlugin`.
+  final String basePackageName;
 }
