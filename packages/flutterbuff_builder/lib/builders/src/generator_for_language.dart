@@ -3,18 +3,18 @@ import 'package:analyzer/dart/constant/value.dart';
 import 'ast.dart';
 
 /// Interface defining a generator for a specific language.
-abstract class GeneratorForLanguage {
-  /// Generates a MethodChannel Caller for [buildStep].
+abstract class LangaugeApiGenerator {
+  /// Generates Flutterbuff API client for [buildStep].
   ///
   /// [options] is the unparsed language specific options annotation.
-  Future<void> generateCaller(
-      {ParsedMethodChannelApi api, BuildStep buildStep, DartObject options});
+  Future<void> generateClient(
+      {ParsedFlutterbuffApi api, BuildStep buildStep, DartObject options});
 
-  /// Generates a MethodChannel Handler for [buildStep].
+  /// Generates a Flutterbuff API server for [buildStep].
   ///
   /// [options] is the unparsed language specific options annotation.
-  Future<void> generateHandler(
-      {ParsedMethodChannelApi api, BuildStep buildStep, DartObject options});
+  Future<void> generateServer(
+      {ParsedFlutterbuffApi api, BuildStep buildStep, DartObject options});
 
   /// Removes initial build artifacts from the given [buildStep] after the build
   /// has completed.

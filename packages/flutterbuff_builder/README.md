@@ -1,9 +1,8 @@
-# auto_channel_builder
+# flutterbuff_builder
 
-Experimental draft for generating MethodChannel handlers for plugins.
+Experimental draft for generating MethodChannel servers for plugins.
 
-Define the MethodChannel API surface with a `@MethodChannelApi` annotation first
-to use this.
+Define the API surface with a `@FlutterbuffApi` annotation first to use this.
 
 This is a rough proof of concept, and certainly buggy and incomplete.
 
@@ -12,17 +11,17 @@ This is a rough proof of concept, and certainly buggy and incomplete.
 Let's assume a desired API similar to the default `flutter create` plugin
 template, with a method to `getPlatformVersion`.
 
-First, create a completely abstract dart class tagged with `@MethodChannelApi`
+First, create a completely abstract dart class tagged with `@FlutterbuffApi`
 describing the API.
 
 ```dart
-import 'package:auto_channel_builder/annotation/method_channel_api.dart';
+import 'package:flutterbuff_builder/annotation/flutterbuff_api.dart';
 
-@MethodChannelApi(
+@FlutterbuffApi(
   channelName: 'test_plugin', // String name of the MethodChannel.
-  invokers: <Language>[Language.dart], // Languages that make calls on the channel.
+  clients: <Language>[Language.dart], // Languages that make calls on the channel.
   // Languages that listen for calls on the channel.
-  handlers: <Language>[
+  servers: <Language>[
     Language(
         name: javaName,
         options: JavaOptions(basePackageName: 'com.example.test_plugin'))
@@ -37,15 +36,15 @@ abstract class TestPluginApi {
 Run the builder: `flutter pub run build_runner build`.
 
 This should generate the boilerplate needed to make MethodChannel calls for the
-given `@MethodChannelApi`. For the above example, it would make:
+given `@FlutterbuffApi`. For the above example, it would make:
 
-- A `TestPluginApiInvoker` Dart class that implements `TestPluginApi`. It
+- A `TestPluginApiClient` Dart class that implements `TestPluginApi`. It
   internally has several `_methodChannel.invokeMethod` calls matching the
   methods as defined in the API, and relies on those calls to provide any
   output.
-- A `TestPluginApi` Java interface that mirrors the Dart `@MethodChannelApi`
+- A `TestPluginApi` Java interface that mirrors the Dart `@FlutterbuffApi`
   one.
-- a `TestPluginApiHandler` Java class that needs a `TestPluginApi`
+- a `TestPluginApiServer` Java class that needs a `TestPluginApi`
   implementation when constructed, and listens for MethodChannel calls with
   names, arguments, and return types matching `TestPluginApi` methods. It
   automatically listens for calls, parses arguments, forwards them to matching
@@ -57,24 +56,24 @@ From there there's two major things left to do:
 - Write a `TestPluginApi` Java interface implementation that actually does
   whatever it is you expect the methods to do when called. In the sample case
   that would be returning the OS version for `getPlatformVersion`.
-- Update `registerWith` to return a new `TestPluginApiHandler` instance using
+- Update `registerWith` to return a new `TestPluginApiServer` instance using
   a new instance of your custom `TestPlugin` interface implementation.
 
 That's it! From then on, Flutter code can call to the platform by instantiating
-`TestPluginApiInvoker` and calling any of the methods directly. Additional
-methods can be added to the `@MethodChannelApi` at any point and the code
+`TestPluginApiClient` and calling any of the methods directly. Additional
+methods can be added to the `@FlutterbuffApi` at any point and the code
 regenerated with `build_runner` to automatically wire in more methods. (You'll
 still need to update the custom interface implementation to do whatever it is
 you actually want these methods to achieve, though!)
 
 There's an example repo using this on
-[Github](https://github.com/mklim/test_plugin/compare/auto_channel).
+[Github](https://github.com/mklim/test_plugin/compare/flutterbuff).
 
 ## Limitations
 
 This is an early prototype that can only generate Dart classes that call across
 the method boundary and Java classes that listen for calls across the method
-boundary. Callers and handlers in these and more languages should eventually
+boundary. Callers and servers in these and more languages should eventually
 follow.
 
 This relies on some workarounds for its reliance on `dart-lang/build`. Normally

@@ -24,7 +24,7 @@
 /// This is valid:
 ///
 /// ```dart
-///   @MethodChannelApi(channelName: 'foo_channel')
+///   @FlutterbuffApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     Future<void> bar(List<int> baz, bool quux);
 ///   }
@@ -33,7 +33,7 @@
 /// This is not OK, since it doesn't return a Future:
 ///
 /// ```dart
-///   @MethodChannelApi(channelName: 'foo_channel')
+///   @FlutterbuffApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     void bar(List<int> baz, bool quux);
 ///   }
@@ -42,7 +42,7 @@
 /// This is also not OK, since the method isn't abstract:
 ///
 /// ```dart
-///   @MethodChannelApi(channelName: 'foo_channel')
+///   @FlutterbuffApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     Future<void> bar(List<int> baz, bool quux) => print('hello world');
 ///   }
@@ -51,31 +51,31 @@
 /// This is also not OK, since it has an unsupported type:
 ///
 /// ```dart
-///   @MethodChannelApi(channelName: 'foo_channel')
+///   @FlutterbuffApi(channelName: 'foo_channel')
 ///   abstract class Foo {
 ///     Future<void> bar(Baz baz);
 ///   }
 /// ```
-class MethodChannelApi {
+class FlutterbuffApi {
   /// [channelName] is the `String` name of the MethodChannel underneath this API.
-  const MethodChannelApi({this.channelName, this.invokers, this.handlers});
+  const FlutterbuffApi({this.channelName, this.clients, this.servers});
   final String channelName;
 
-  /// The languages to generate invokers for.
+  /// The languages to generate clients for.
   ///
-  /// An "invoker" is a class that _initiates_ calls to the `MethodChannel`.
-  /// In most typical Flutter plugins Dart will be the only invoker. In some
+  /// An "client" is a class that _initiates_ calls to the `MethodChannel`.
+  /// In most typical Flutter plugins Dart will be the only client. In some
   /// more complicated use cases other langauges may also initiate calls across
   /// the method channel, for example when the underlying platforms need to call
   /// Dart code in response to a callback.
-  final List<Language> invokers;
+  final List<Language> clients;
 
-  /// The langauges to generate handlers for.
+  /// The langauges to generate servers for.
   ///
-  /// A "handler" is a class that _listens and responds to_ calls on the
-  /// `MethodChannel`. In most typical Flutter plugins there will be Handlers
+  /// A "server" is a class that _listens and responds to_ calls on the
+  /// `MethodChannel`. In most typical Flutter plugins there will be servers
   /// for each platform supported by the plugin.
-  final List<Language> handlers;
+  final List<Language> servers;
 }
 
 /// Generic representation of each langauge supported by the generator.

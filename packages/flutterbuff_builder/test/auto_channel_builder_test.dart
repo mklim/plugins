@@ -1,9 +1,9 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:auto_channel_builder/auto_channel_builder.dart';
+import 'package:flutterbuff_builder/flutterbuff_builder.dart';
 
 void main() {
-  const MethodChannel channel = MethodChannel('auto_channel_builder');
+  const MethodChannel channel = MethodChannel('flutterbuff_builder');
 
   TestWidgetsFlutterBinding.ensureInitialized();
 

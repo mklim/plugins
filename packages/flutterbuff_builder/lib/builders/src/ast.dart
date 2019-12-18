@@ -4,8 +4,8 @@ import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
 /// Represents an API that crosses the MethodChannel boundary.
-class ParsedMethodChannelApi {
-  /// Attempts to parse the given [element] into an [ParsedMethodChannelApi].
+class ParsedFlutterbuffApi {
+  /// Attempts to parse the given [element] into an [ParsedFlutterbuffApi].
   ///
   /// Will throw [InvalidGenerationSourceError] if there's any issues with
   /// creating the struct.
@@ -16,7 +16,7 @@ class ParsedMethodChannelApi {
   /// channel.
   ///
   /// Also expects [annotation] to have a set `'channelName'` `String` value.
-  factory ParsedMethodChannelApi.generate(
+  factory ParsedFlutterbuffApi.generate(
       Element element, ConstantReader annotation) {
     if (element is! ClassElement) {
       throw InvalidGenerationSourceError('Can only target abstract classes.');
@@ -30,13 +30,13 @@ class ParsedMethodChannelApi {
         .map((MethodElement el) => ParsedMethod.generate(el))
         .toList();
 
-    return ParsedMethodChannelApi._(
+    return ParsedFlutterbuffApi._(
         name: apiClassDef.name,
         methodChannelName: annotation.read('channelName').stringValue,
         methods: methods);
   }
 
-  const ParsedMethodChannelApi._(
+  const ParsedFlutterbuffApi._(
       {this.name, this.methodChannelName, this.methods});
 
   /// The name of the API.
@@ -52,7 +52,7 @@ class ParsedMethodChannelApi {
   final List<ParsedMethod> methods;
 }
 
-/// Represents a single method on a [ParsedMethodChannelApi].
+/// Represents a single method on a [ParsedFlutterbuffApi].
 class ParsedMethod {
   /// Attempts to parse the given [method] into a [ParsedMethod].
   ///

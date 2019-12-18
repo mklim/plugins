@@ -1,53 +1,53 @@
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:auto_channel_builder/annotation/method_channel_api.dart';
+import 'package:flutterbuff_builder/annotation/flutterbuff_api.dart';
 import 'package:build/build.dart';
 import 'package:tuple/tuple.dart';
 
 import '../ast.dart';
 import '../generator_for_language.dart';
 
-const String _invokerClassTemplate = """
+const String _clientClassTemplate = """
   import '%BASE_URI%';
   import 'package:flutter/services.dart';
 
-  class %BASE_NAME%Invoker implements %BASE_NAME% {
+  class %BASE_NAME%Client implements %BASE_NAME% {
     MethodChannel _methodChannel = MethodChannel('%CHANNEL_NAME%');
 
 %METHODS%
   }
 """;
 
-const String _invokerMethodTemplate = """
+const String _clientMethodTemplate = """
     @override
     Future<%RETURN_TYPE%> %NAME%(%ARG_LIST%) async {
       final Map<String, dynamic> args = {%ARG_MAP_KEYS%};
       return _methodChannel.%INVOKE_METHOD%<%METHOD_TYPE_ARGS%>('%NAME%', args);
     }""";
 
-class DartAutoChannelGenerator extends GeneratorForLanguage {
+class DartApiGenerator extends LangaugeApiGenerator {
   @override
-  Future<void> generateCaller(
-      {ParsedMethodChannelApi api,
+  Future<void> generateClient(
+      {ParsedFlutterbuffApi api,
       BuildStep buildStep,
       DartObject options}) async {
     final String methods = api.methods.map(_methodString).toList().join('\n\n');
-    final String callerString = _invokerClassTemplate
+    final String callerString = _clientClassTemplate
         .replaceAll('%BASE_URI%', buildStep.inputId.uri.toString())
         .replaceAll('%BASE_NAME%', api.name)
         .replaceAll('%CHANNEL_NAME%', api.methodChannelName)
         .replaceAll('%METHODS%', methods);
 
     final AssetId output =
-        buildStep.inputId.changeExtension('.auto_channel.dart');
+        buildStep.inputId.changeExtension('.flutterbuff.dart');
     buildStep.writeAsString(output, callerString);
   }
 
   @override
-  Future<void> generateHandler(
-          {ParsedMethodChannelApi api,
+  Future<void> generateServer(
+          {ParsedFlutterbuffApi api,
           BuildStep buildStep,
           DartObject options}) =>
-      throw UnimplementedError("Can't build Dart Handlers yet.");
+      throw UnimplementedError("Can't build Dart servers yet.");
 
   String _methodString(ParsedMethod method) {
     final List<String> argList = <String>[];
@@ -71,7 +71,7 @@ class DartAutoChannelGenerator extends GeneratorForLanguage {
         invokeMethod = 'invokeMapMethod';
       }
     }
-    return _invokerMethodTemplate
+    return _clientMethodTemplate
         .replaceAll('%RETURN_TYPE%', _fullTypeString(method.returnType))
         .replaceAll('%METHOD_TYPE_ARGS%', methodTypeArgs)
         .replaceAll('%INVOKE_METHOD%', invokeMethod)

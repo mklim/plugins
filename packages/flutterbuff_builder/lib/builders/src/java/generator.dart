@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:auto_channel_builder/annotation/method_channel_api.dart';
+import 'package:flutterbuff_builder/annotation/flutterbuff_api.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart' as p;
 import 'package:source_gen/source_gen.dart';
@@ -35,7 +35,7 @@ const String _header = """
 package %PACKAGE%;
 """;
 
-const String _handlerClassTemplate = """$_header
+const String _serverClassTemplate = """$_header
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -68,7 +68,7 @@ public final class %BASE_NAME%Handler implements MethodCallHandler {
 }
 """;
 
-const String _handlerCaseTemplate = """      case "%NAME%":
+const String _serverCaseTemplate = """      case "%NAME%":
         result.success(impl.%NAME%(%ARGS%));
         break;""";
 
@@ -84,19 +84,19 @@ public interface %BASE_NAME% {
 }
 """;
 
-class JavaAutoChannelGenerator extends GeneratorForLanguage {
+class JavaApiGenerator extends LangaugeApiGenerator {
   Directory _outputDirectory;
 
   @override
-  Future<void> generateCaller(
-          {ParsedMethodChannelApi api,
+  Future<void> generateClient(
+          {ParsedFlutterbuffApi api,
           BuildStep buildStep,
           DartObject options}) =>
-      throw UnimplementedError("Can't build Java Handlers yet.");
+      throw UnimplementedError("Can't build Java servers yet.");
 
   @override
-  Future<void> generateHandler(
-      {ParsedMethodChannelApi api,
+  Future<void> generateServer(
+      {ParsedFlutterbuffApi api,
       BuildStep buildStep,
       DartObject options}) async {
     _outputDirectory = null;
@@ -104,10 +104,10 @@ class JavaAutoChannelGenerator extends GeneratorForLanguage {
 
     final Future<void> interfaceFuture = _generateInterface(
         api: api, buildStep: buildStep, options: parsedOptions);
-    final Future<void> handlerFuture = _generateHandler(
-        api: api, buildStep: buildStep, options: parsedOptions);
+    final Future<void> serverFuture =
+        _generateServer(api: api, buildStep: buildStep, options: parsedOptions);
 
-    await Future.wait(<Future<void>>[interfaceFuture, handlerFuture]);
+    await Future.wait(<Future<void>>[interfaceFuture, serverFuture]);
   }
 
   @override
@@ -156,7 +156,7 @@ class JavaAutoChannelGenerator extends GeneratorForLanguage {
 
   @override
   List<String> get extensions =>
-      <String>['.auto_channel.java', '.auto_channel.handler.java'];
+      <String>['.flutterbuff.java', '.flutterbuff.server.java'];
 
   Directory _initOutputDir(String path) {
     final Directory outputDir = Directory(path);
@@ -171,25 +171,25 @@ class JavaAutoChannelGenerator extends GeneratorForLanguage {
     return outputDir;
   }
 
-  Future<void> _generateHandler(
-      {ParsedMethodChannelApi api, BuildStep buildStep, JavaOptions options}) {
+  Future<void> _generateServer(
+      {ParsedFlutterbuffApi api, BuildStep buildStep, JavaOptions options}) {
     final String cases =
-        api.methods.map(_buildHandlerCaseString).toList().join('\n\n');
+        api.methods.map(_buildServerCaseString).toList().join('\n\n');
 
-    final String output = _handlerClassTemplate
+    final String output = _serverClassTemplate
         .replaceAll('%BASE_NAME%', api.name)
         .replaceAll('%CHANNEL_NAME%', api.methodChannelName)
         .replaceAll('%PACKAGE%', options.basePackageName)
         .replaceAll('%HANDLER_CASES%', cases);
 
     final AssetId javaFile =
-        buildStep.inputId.changeExtension('.auto_channel.handler.java');
+        buildStep.inputId.changeExtension('.flutterbuff.server.java');
     return buildStep.writeAsString(javaFile, output);
   }
 
   // Create a generic interface for the API surface on the Java side.
   Future<void> _generateInterface(
-      {ParsedMethodChannelApi api, BuildStep buildStep, JavaOptions options}) {
+      {ParsedFlutterbuffApi api, BuildStep buildStep, JavaOptions options}) {
     final String methods =
         api.methods.map(_buildInterfaceMethodString).toList().join('\n\n');
     final String output = _interfaceClassTemplate
@@ -198,7 +198,7 @@ class JavaAutoChannelGenerator extends GeneratorForLanguage {
         .replaceAll('%METHODS%', methods);
 
     final AssetId javaFile =
-        buildStep.inputId.changeExtension('.auto_channel.java');
+        buildStep.inputId.changeExtension('.flutterbuff.java');
     return buildStep.writeAsString(javaFile, output);
   }
 
@@ -218,13 +218,13 @@ class JavaAutoChannelGenerator extends GeneratorForLanguage {
     return JavaOptions(basePackageName: '$basePackageName.generated');
   }
 
-  static String _buildHandlerCaseString(ParsedMethod method) {
+  static String _buildServerCaseString(ParsedMethod method) {
     final String argList = method.args
         .map((Tuple2<ArgType, String> arg) =>
             '(${_buildFullTypeString(arg.item1)}) call.argument("${arg.item2}")')
         .join(', ');
 
-    return _handlerCaseTemplate
+    return _serverCaseTemplate
         .replaceAll('%NAME%', method.name)
         .replaceAll('%ARGS%', argList);
   }
