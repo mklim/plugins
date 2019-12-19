@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:flutterbuff_builder/annotation/flutterbuff_api.dart';
+import 'package:flutterbuff_annotation/flutterbuff_api.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart' as p;
 import 'package:source_gen/source_gen.dart';

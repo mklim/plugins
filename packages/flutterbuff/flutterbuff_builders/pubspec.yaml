@@ -1,4 +1,4 @@
-name: flutterbuff_builder
+name: flutterbuff_builders
 description: A new flutter plugin project.
 version: 0.0.1
 author:
@@ -8,13 +8,9 @@ environment:
   sdk: ">=2.1.0 <3.0.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
   build: ^1.1.6
   source_gen: ^0.9.4+4
   tuple: ^1.0.2
   analyzer: ^0.38.1
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
+  flutterbuff_annotation:
+    path: ../flutterbuff_annotation

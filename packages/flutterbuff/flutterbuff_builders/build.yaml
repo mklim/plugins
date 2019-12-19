@@ -1,6 +1,6 @@
 builders:
-  flutterbuff_builder:
-    import: "package:flutterbuff_builder/builders/flutterbuff_generator.dart"
+  flutterbuff_builders:
+    import: "package:flutterbuff_builders/flutterbuff_generator.dart"
     builder_factories: ["flutterbuffApiGenerator"]
     build_extensions: {".dart": [".flutterbuff.dart"]}
     auto_apply: dependents
@@ -8,6 +8,6 @@ builders:
     applies_builders: [":cleanup"]
 post_process_builders:
   cleanup:
-    import: "package:flutterbuff_builder/builders/flutterbuff_generator.dart"
+    import: "package:flutterbuff_builders/flutterbuff_generator.dart"
     builder_factory: "cleanupGenerator"
     input_extensions: [".java"]
