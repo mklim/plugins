@@ -4,7 +4,8 @@ import 'package:build/build.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../ast/api.dart';
-import '../../ast/common.dart';
+import '../../ast/types.dart';
+import 'common.dart';
 import '../api_generator.dart';
 
 const String _clientClassTemplate = """
@@ -25,7 +26,7 @@ const String _clientMethodTemplate = """
       return _methodChannel.%INVOKE_METHOD%<%METHOD_TYPE_ARGS%>('%NAME%', args);
     }""";
 
-class DartApiGenerator extends LangaugeApiGenerator {
+class DartApiGenerator extends ApiGenerator {
   @override
   Future<void> generateClient(
       {ParsedFlutterbuffApi api,
@@ -39,7 +40,7 @@ class DartApiGenerator extends LangaugeApiGenerator {
         .replaceAll('%METHODS%', methods);
 
     final AssetId output =
-        buildStep.inputId.changeExtension('.flutterbuff.dart');
+        buildStep.inputId.changeExtension('.flutterbuff_api.dart');
     buildStep.writeAsString(output, callerString);
   }
 
@@ -53,27 +54,27 @@ class DartApiGenerator extends LangaugeApiGenerator {
   String _methodString(ParsedMethod method) {
     final List<String> argList = <String>[];
     final List<String> argMapKeys = <String>[];
-    for (Tuple2<ArgType, String> arg in method.args) {
-      argList.add('${_fullTypeString(arg.item1)} ${arg.item2}');
+    for (Tuple2<FullType, String> arg in method.args) {
+      argList.add('${fullTypeString(arg.item1)} ${arg.item2}');
       argMapKeys.add("'${arg.item2}': ${arg.item2}");
     }
     String invokeMethod;
     String methodTypeArgs;
-    if (method.returnType.type != SupportedType.LIST &&
-        method.returnType.type != SupportedType.MAP) {
+    if (method.returnType.type != SimpleType.LIST &&
+        method.returnType.type != SimpleType.MAP) {
       invokeMethod = 'invokeMethod';
-      methodTypeArgs = _fullTypeString(method.returnType);
+      methodTypeArgs = fullTypeString(method.returnType);
     } else {
       methodTypeArgs =
-          method.returnType.typeArguments.map(_fullTypeString).join(', ');
-      if (method.returnType.type == SupportedType.LIST) {
+          method.returnType.typeArguments.map(fullTypeString).join(', ');
+      if (method.returnType.type == SimpleType.LIST) {
         invokeMethod = 'invokeListMethod';
-      } else if (method.returnType.type == SupportedType.MAP) {
+      } else if (method.returnType.type == SimpleType.MAP) {
         invokeMethod = 'invokeMapMethod';
       }
     }
     return _clientMethodTemplate
-        .replaceAll('%RETURN_TYPE%', _fullTypeString(method.returnType))
+        .replaceAll('%RETURN_TYPE%', fullTypeString(method.returnType))
         .replaceAll('%METHOD_TYPE_ARGS%', methodTypeArgs)
         .replaceAll('%INVOKE_METHOD%', invokeMethod)
         .replaceAll('%NAME%', method.name)
@@ -90,14 +91,4 @@ class DartApiGenerator extends LangaugeApiGenerator {
 
   @override
   List<String> get extensions => <String>[];
-
-  String _fullTypeString(ArgType type) {
-    final String parameters =
-        type.typeArguments.map(_fullTypeString).join(', ');
-    if (parameters.isEmpty) {
-      return supportedTypeEnumToDartName[type.type];
-    } else {
-      return '${supportedTypeEnumToDartName[type.type]}<$parameters>';
-    }
-  }
 }

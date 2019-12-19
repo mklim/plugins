@@ -11,12 +11,12 @@ import 'src/language_generators/api_generator.dart';
 import 'src/language_generators/dart/api_generator.dart';
 import 'src/language_generators/java/api_generator.dart';
 
-List<LangaugeApiGenerator> _generators = <LangaugeApiGenerator>[
+List<ApiGenerator> _generators = <ApiGenerator>[
   DartApiGenerator(),
   JavaApiGenerator(),
 ];
 List<String> _generatedLangaugeExtensions = _generators
-    .map((LangaugeApiGenerator g) => g.extensions)
+    .map((ApiGenerator g) => g.extensions)
     .expand((List<String> l) => l)
     .toList();
 
@@ -43,9 +43,9 @@ class FlutterbuffApiGenerator extends GeneratorForAnnotation<FlutterbuffApi> {
     return null;
   }
 
-  static LangaugeApiGenerator _getGenerator(DartObject language) {
+  static ApiGenerator _getGenerator(DartObject language) {
     final String name = language.getField('name').toStringValue();
-    for (LangaugeApiGenerator generator in _generators) {
+    for (ApiGenerator generator in _generators) {
       if (generator.languageName == name) {
         return generator;
       }
@@ -64,8 +64,8 @@ class Cleanup extends PostProcessBuilder {
   @override
   Iterable<String> inputExtensions = _generatedLangaugeExtensions;
 
-  static LangaugeApiGenerator _getGenerator(String path) {
-    for (LangaugeApiGenerator generator in _generators) {
+  static ApiGenerator _getGenerator(String path) {
+    for (ApiGenerator generator in _generators) {
       if (generator.extensions
           .where((String extension) => path.endsWith(extension))
           .isNotEmpty) {
@@ -79,7 +79,7 @@ class Cleanup extends PostProcessBuilder {
 
 Builder flutterbuffApiGenerator(BuilderOptions options) {
   return LibraryBuilder(FlutterbuffApiGenerator(),
-      generatedExtension: '.flutterbuff.dart',
+      generatedExtension: '.flutterbuff_api.dart',
       additionalOutputExtensions: _generatedLangaugeExtensions);
 }
 

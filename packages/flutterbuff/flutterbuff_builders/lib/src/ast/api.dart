@@ -3,7 +3,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
-import 'common.dart';
+import 'types.dart';
 
 /// Represents an API that crosses the MethodChannel boundary.
 class ParsedFlutterbuffApi {
@@ -82,17 +82,17 @@ class ParsedMethod {
       throw InvalidGenerationSourceError(
           'All MethodChannel API methods must return Futures.');
     }
-    final ArgType returnType = ArgType.generate(
+    final FullType returnType = FullType.generate(
         (outerReturnType as ParameterizedType).typeArguments.first);
 
-    final List<Tuple2<ArgType, String>> args = <Tuple2<ArgType, String>>[];
+    final List<Tuple2<FullType, String>> args = <Tuple2<FullType, String>>[];
     for (ParameterElement param in method.parameters) {
       if (!param.isRequiredPositional) {
         throw InvalidGenerationSourceError(
             'Can only use required positional parameters. Can\'t parse "${param.name}".');
       }
       args.add(
-          Tuple2<ArgType, String>(ArgType.generate(param.type), param.name));
+          Tuple2<FullType, String>(FullType.generate(param.type), param.name));
     }
 
     return ParsedMethod._(
@@ -101,50 +101,7 @@ class ParsedMethod {
 
   const ParsedMethod._({this.returnType, this.name, this.args});
 
-  final ArgType returnType;
+  final FullType returnType;
   final String name;
-  final List<Tuple2<ArgType, String>> args;
-}
-
-
-/// Represents the Type of some data portion of an [ParsedMethod] signature.
-///
-/// This is guaranteed to be supported type from the method channel. https://flutter.dev/docs/development/platform-integration/platform-channels#platform-channel-data-types-support-and-codecs
-class ArgType {
-  /// Creates an [ArgType] from the given [DartType].
-  ///
-  /// Throws an [InvalidGenerationSourceError] if [type] isn't equivalent to one
-  /// of the supported types.
-  factory ArgType.generate(DartType type) {
-    if (!dartNameToSupportedTypeEnum.containsKey(type.name)) {
-      throw InvalidGenerationSourceError(
-          'Can only use types directly supported by the platform channels. (https://flutter.dev/docs/development/platform-integration/platform-channels#platform-channel-data-types-support-and-codecs) Found "${type.displayName}".');
-    }
-
-    final List<ArgType> typeArgs = <ArgType>[];
-    if (type is ParameterizedType) {
-      // Make sure that the subtype for list and map are also supported.
-      typeArgs.addAll((type as ParameterizedType)
-          .typeArguments
-          .map((DartType dartType) => ArgType.generate(dartType)));
-    }
-
-    final SupportedType supportedType = dartNameToSupportedTypeEnum[type.name];
-    return ArgType._(type: supportedType, typeArguments: typeArgs);
-  }
-
-  const ArgType._({this.type, this.typeArguments});
-
-  /// Language agnostic representation of the type.
-  ///
-  /// See https://flutter.dev/docs/development/platform-integration/platform-channels#platform-channel-data-types-support-and-codecs
-  final SupportedType type;
-
-  /// In the case of generics, the type arguments specified for the generic.
-  ///
-  /// For example, for `Map<int, bool>`, this would be a list of the
-  /// corresponding ApiTypes for `int` and `bool`.
-  ///
-  /// This can be nested. For example, `Map<String, List<int>>>`.
-  final List<ArgType> typeArguments;
+  final List<Tuple2<FullType, String>> args;
 }

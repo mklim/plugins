@@ -1,13 +1,20 @@
 builders:
-  flutterbuff_builders:
-    import: "package:flutterbuff_builders/flutterbuff_generator.dart"
+  flutterbuff_api_builders:
+    import: "package:flutterbuff_builders/flutterbuff_api_generator.dart"
     builder_factories: ["flutterbuffApiGenerator"]
-    build_extensions: {".dart": [".flutterbuff.dart"]}
+    build_extensions: {".dart": [".flutterbuff_api.dart"]}
+    auto_apply: dependents
+    build_to: source
+    applies_builders: [":cleanup"]
+  flutterbuff_struct_builders:
+    import: "package:flutterbuff_builders/flutterbuff_struct_generator.dart"
+    builder_factories: ["flutterbuffStructGenerator"]
+    build_extensions: {".dart": ["flutterbuff.dart"]}
     auto_apply: dependents
     build_to: source
     applies_builders: [":cleanup"]
 post_process_builders:
   cleanup:
-    import: "package:flutterbuff_builders/flutterbuff_generator.dart"
+    import: "package:flutterbuff_builders/flutterbuff_api_generator.dart"
     builder_factory: "cleanupGenerator"
     input_extensions: [".java"]

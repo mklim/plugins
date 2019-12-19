@@ -10,20 +10,20 @@ import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../ast/api.dart';
-import '../../ast/common.dart';
+import '../../ast/types.dart';
 import '../api_generator.dart';
 
-const Map<SupportedType, String> supportedTypeEnumToJavaName =
-    <SupportedType, String>{
-  SupportedType.DYNAMIC: 'Object',
-  SupportedType.VOID: 'void',
-  SupportedType.NULL: 'null',
-  SupportedType.BOOL: 'Boolean',
-  SupportedType.INT: 'Integer',
-  SupportedType.DOUBLE: 'Double',
-  SupportedType.STRING: 'String',
-  SupportedType.LIST: 'ArrayList',
-  SupportedType.MAP: 'HashMap'
+const Map<SimpleType, String> supportedTypeEnumToJavaName =
+    <SimpleType, String>{
+  SimpleType.DYNAMIC: 'Object',
+  SimpleType.VOID: 'void',
+  SimpleType.NULL: 'null',
+  SimpleType.BOOL: 'Boolean',
+  SimpleType.INT: 'Integer',
+  SimpleType.DOUBLE: 'Double',
+  SimpleType.STRING: 'String',
+  SimpleType.LIST: 'ArrayList',
+  SimpleType.MAP: 'HashMap'
 };
 
 const String _header = """
@@ -85,7 +85,7 @@ public interface %BASE_NAME% {
 }
 """;
 
-class JavaApiGenerator extends LangaugeApiGenerator {
+class JavaApiGenerator extends ApiGenerator {
   Directory _outputDirectory;
 
   @override
@@ -221,7 +221,7 @@ class JavaApiGenerator extends LangaugeApiGenerator {
 
   static String _buildServerCaseString(ParsedMethod method) {
     final String argList = method.args
-        .map((Tuple2<ArgType, String> arg) =>
+        .map((Tuple2<FullType, String> arg) =>
             '(${_buildFullTypeString(arg.item1)}) call.argument("${arg.item2}")')
         .join(', ');
 
@@ -232,7 +232,7 @@ class JavaApiGenerator extends LangaugeApiGenerator {
 
   static String _buildInterfaceMethodString(ParsedMethod method) {
     final List<String> argList = method.args
-        .map((Tuple2<ArgType, String> arg) =>
+        .map((Tuple2<FullType, String> arg) =>
             '${_buildFullTypeString(arg.item1)} ${arg.item2}')
         .toList();
     return _interfaceMethodTemplate
@@ -241,7 +241,7 @@ class JavaApiGenerator extends LangaugeApiGenerator {
         .replaceAll('%ARGS%', argList.join(', '));
   }
 
-  static String _buildFullTypeString(ArgType type) {
+  static String _buildFullTypeString(FullType type) {
     final String parameters =
         type.typeArguments.map(_buildFullTypeString).join(', ');
     if (parameters.isEmpty) {
