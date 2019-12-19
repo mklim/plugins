@@ -3,8 +3,9 @@ import 'package:flutterbuff_annotation/flutterbuff_api.dart';
 import 'package:build/build.dart';
 import 'package:tuple/tuple.dart';
 
-import '../ast.dart';
-import '../generator_for_language.dart';
+import '../../ast/api.dart';
+import '../../ast/common.dart';
+import '../api_generator.dart';
 
 const String _clientClassTemplate = """
   import '%BASE_URI%';

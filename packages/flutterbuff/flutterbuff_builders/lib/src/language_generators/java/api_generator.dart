@@ -9,8 +9,9 @@ import 'package:path/path.dart' as p;
 import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
-import '../ast.dart';
-import '../generator_for_language.dart';
+import '../../ast/api.dart';
+import '../../ast/common.dart';
+import '../api_generator.dart';
 
 const Map<SupportedType, String> supportedTypeEnumToJavaName =
     <SupportedType, String>{

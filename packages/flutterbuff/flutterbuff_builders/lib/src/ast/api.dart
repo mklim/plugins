@@ -3,6 +3,8 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:tuple/tuple.dart';
 
+import 'common.dart';
+
 /// Represents an API that crosses the MethodChannel boundary.
 class ParsedFlutterbuffApi {
   /// Attempts to parse the given [element] into an [ParsedFlutterbuffApi].
@@ -104,23 +106,6 @@ class ParsedMethod {
   final List<Tuple2<ArgType, String>> args;
 }
 
-/// Language agnostic enum representation of all supported types.
-enum SupportedType { DYNAMIC, VOID, NULL, BOOL, INT, DOUBLE, STRING, LIST, MAP }
-const Map<SupportedType, String> supportedTypeEnumToDartName =
-    <SupportedType, String>{
-  SupportedType.DYNAMIC: 'dynamic',
-  SupportedType.VOID: 'void',
-  SupportedType.NULL: 'null',
-  SupportedType.BOOL: 'bool',
-  SupportedType.INT: 'int',
-  SupportedType.DOUBLE: 'double',
-  SupportedType.STRING: 'String',
-  SupportedType.LIST: 'List',
-  SupportedType.MAP: 'Map'
-};
-Map<String, SupportedType> dartNameToSupportedTypeEnum =
-    supportedTypeEnumToDartName.map((SupportedType type, String dartName) =>
-        MapEntry<String, SupportedType>(dartName, type));
 
 /// Represents the Type of some data portion of an [ParsedMethod] signature.
 ///

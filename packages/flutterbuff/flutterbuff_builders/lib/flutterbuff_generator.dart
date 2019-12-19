@@ -6,10 +6,10 @@ import 'package:flutterbuff_annotation/flutterbuff_api.dart';
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 
-import 'src/ast.dart';
-import 'src/dart/generator.dart';
-import 'src/generator_for_language.dart';
-import 'src/java/generator.dart';
+import 'src/ast/api.dart';
+import 'src/language_generators/api_generator.dart';
+import 'src/language_generators/dart/api_generator.dart';
+import 'src/language_generators/java/api_generator.dart';
 
 List<LangaugeApiGenerator> _generators = <LangaugeApiGenerator>[
   DartApiGenerator(),
