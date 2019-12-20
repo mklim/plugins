@@ -244,7 +244,7 @@ class JavaApiGenerator extends ApiGenerator {
   static String _buildFullTypeString(FullType type) {
     final String parameters =
         type.typeArguments.map(_buildFullTypeString).join(', ');
-    if (parameters.isEmpty) {
+    if (parameters == null || parameters.isEmpty) {
       return supportedTypeEnumToJavaName[type.type];
     } else {
       return '${supportedTypeEnumToJavaName[type.type]}<$parameters>';

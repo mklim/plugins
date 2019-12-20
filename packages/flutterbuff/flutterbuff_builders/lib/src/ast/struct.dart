@@ -22,24 +22,11 @@ class ParsedFlutterbuffStruct {
       throw InvalidGenerationSourceError('Can only target abstract classes.');
     }
     final ClassElement apiClassDef = element as ClassElement;
-    if (!apiClassDef.isAbstract) {
-      throw InvalidGenerationSourceError('Can only target abstract classes.');
-    }
-    if (!apiClassDef.name.startsWith('_')) {
-      throw InvalidGenerationSourceError(
-          'Data classes must be private. Rename the class to start with "_".');
-    }
-    if (apiClassDef.methods.isNotEmpty) {
-      throw InvalidGenerationSourceError(
-          'Data classes can\'t have any methods.');
-    }
-
     final List<ParsedField> fields = apiClassDef.fields
         .map((FieldElement el) => ParsedField.generate(el))
         .toList();
 
-    return ParsedFlutterbuffStruct._(
-        name: apiClassDef.name.substring(1), fields: fields);
+    return ParsedFlutterbuffStruct._(name: apiClassDef.name, fields: fields);
   }
 
   const ParsedFlutterbuffStruct._({this.name, this.fields});

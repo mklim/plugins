@@ -6,31 +6,26 @@ import 'package:flutterbuff_annotation/flutterbuff_api.dart';
 import 'package:path/path.dart' as p;
 
 import '../../ast/struct.dart';
-import 'common.dart';
 
 const String _structTemplate = """
 part of '%BASE_FILE%';
 
-class %NAME% implements _%NAME% {
-  %NAME%({%CONSTRUCTOR_ARGS%});
-
-  static %NAME% fromFlutterbuff(Map<String, dynamic> flutterbuff) {
-    return %NAME%(%DESERIALIZE_ARGS%);
+%NAME% _\$%NAME%FromFlutterbuff(Map<String, dynamic> fb) {
+  %NAME% output = %NAME%();
+%DESERIALIZE_LINES%
+  return output;
   }
 
-  Map<String, dynamic> toFlutterbuff() {
-    return <String, dynamic>{%SERIALIZED_KEYS%};
-  }
-
-%FIELDS%
+Map<String, dynamic> _\$%NAME%ToJson(%NAME% input) {
+  return <String, dynamic>{%SERIALIZED_KEYS%};
 }
 """;
 
-const String _constructorArgsTemplate = """this.%NAME%""";
+const String _deserializeLineTemplate = """
+  output.%NAME% = fb["%NAME%"];
+""";
 
-const String _deserializeArgTemplate = """%NAME%: flutterbuff["%NAME%"]""";
-
-const String _serializeKeyTemplate = """"%NAME%": %NAME%""";
+const String _serializeKeyTemplate = """"%NAME%": input.%NAME%""";
 
 class DartStructGenerator extends StructGenerator {
   @override
@@ -41,10 +36,8 @@ class DartStructGenerator extends StructGenerator {
     final String outputString = _structTemplate
       .replaceAll('%BASE_FILE%', p.basename(buildStep.inputId.path))
       .replaceAll('%NAME%', struct.name)
-      .replaceAll('%CONSTRUCTOR_ARGS%', _useFieldNamesInTemplate(_constructorArgsTemplate, struct))
-      .replaceAll('%DESERIALIZE_ARGS%', _useFieldNamesInTemplate(_deserializeArgTemplate, struct))
-      .replaceAll('%SERIALIZED_KEYS%', _useFieldNamesInTemplate(_serializeKeyTemplate, struct))
-      .replaceAll('%FIELDS%', struct.fields.map(_fieldString).join('\n'));
+      .replaceAll('%DESERIALIZE_LINES%', _useFieldNamesInTemplate(_deserializeLineTemplate, struct, join: ''))
+      .replaceAll('%SERIALIZED_KEYS%', _useFieldNamesInTemplate(_serializeKeyTemplate, struct, join: ', '));
 
     final AssetId outputAsset =
         buildStep.inputId.changeExtension('.flutterbuff.dart');
@@ -61,9 +54,7 @@ class DartStructGenerator extends StructGenerator {
   @override
   List<String> get extensions => <String>[];
 
-  static String _useFieldNamesInTemplate(String template, ParsedFlutterbuffStruct struct) {
-    return struct.fields.map((ParsedField field) => template.replaceAll('%NAME%', field.name)).join(', ');
+  static String _useFieldNamesInTemplate(String template, ParsedFlutterbuffStruct struct, {String join}) {
+    return struct.fields.map((ParsedField field) => template.replaceAll('%NAME%', field.name)).join(join);
   }
-
-  String _fieldString(ParsedField field) => "  ${fullTypeString(field.type)} ${field.name};";
 }
